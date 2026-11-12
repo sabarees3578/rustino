@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111318" />
+    <title>Rustino — Arduino Workbench</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./modes.css" />
+  </head>
+  <body>
+    <dialog id="unsaved-dialog" class="unsaved-dialog">
+      <h2>Unsaved changes</h2>
+      <p>Save your edits before switching files or closing Rustino?</p>
+      <div class="unsaved-actions">
+        <button id="unsaved-cancel" class="small-button">Cancel</button>
+        <button id="unsaved-discard" class="small-button">Don't Save</button>
+        <button id="unsaved-save" class="run-button upload">Save</button>
+      </div>
+    </dialog>
+    <div class="app-frame">
+      <header class="titlebar" data-tauri-drag-region>
+        <div class="brand" data-tauri-drag-region><span class="brand-mark">R</span><span>rustino</span><span class="brand-context">Arduino Workbench</span></div>
+        <div class="titlebar-center" data-tauri-drag-region><span class="crumb-root" id="workspace-name">No workspace</span><span class="crumb-sep">/</span><span id="active-file-title">Blink.ino</span><span class="unsaved-dot" id="title-dirty">●</span></div>
+        <div class="hardware-actions">
+          <select id="top-board" class="hardware-select" title="Board target"><option value="esp32:esp32:esp32">ESP32 Dev Module</option><option value="esp32:esp32:esp32c3">ESP32-C3</option><option value="esp32:esp32:esp32s3">ESP32-S3</option><option value="esp32:esp32:esp32c6">ESP32-C6</option><option value="arduino:avr:uno">Arduino Uno</option><option value="rp2040:rp2040:rpipico">Raspberry Pi Pico</option></select>
+          <select id="top-port" class="hardware-select port-select" title="Serial port"><option value="">No port</option></select>
+          <button class="run-button verify" id="verify"><span>✓</span> Verify</button>
+          <button class="run-button upload" id="upload"><span>⇧</span> Upload</button>
+          <button class="icon-button" id="quick-serial" title="Serial Monitor">⌁</button>
+          <button class="icon-button" id="quick-plotter" title="Serial Plotter">∿</button>
+        </div>
+        <div class="window-controls"><button id="window-minimize" title="Minimize">—</button><button id="window-maximize" title="Maximize / restore">□</button><button id="window-close" title="Close">×</button></div>
+      </header>
+
+      <nav class="menubar" aria-label="Application menu">
+        <div class="menu-entry"><button class="menu-trigger">File</button><div class="menu-popover"><button data-action="new">New Sketch <kbd>Ctrl+N</kbd></button><button data-action="open">Open… <kbd>Ctrl+O</kbd></button><button data-action="close-file">Close File</button><button data-action="save">Save <kbd>Ctrl+S</kbd></button><button data-action="save-as">Save As…</button><hr/><button data-action="settings">Preferences… <kbd>Ctrl+,</kbd></button><button data-action="quit">Exit</button></div></div>
+        <div class="menu-entry"><button class="menu-trigger">Edit</button><div class="menu-popover"><button data-action="undo">Undo <kbd>Ctrl+Z</kbd></button><button data-action="redo">Redo <kbd>Ctrl+Y</kbd></button><hr/><button data-action="cut">Cut</button><button data-action="copy">Copy</button><button data-action="paste">Paste</button><button data-action="select-all">Select All <kbd>Ctrl+A</kbd></button><hr/><button data-action="comment">Toggle Comment <kbd>Ctrl+/</kbd></button><button data-action="find">Find / Replace <kbd>Ctrl+F</kbd></button></div></div>
+        <div class="menu-entry"><button class="menu-trigger">Sketch</button><div class="menu-popover"><button data-action="verify">Verify / Compile <kbd>Ctrl+R</kbd></button><button data-action="upload">Upload <kbd>Ctrl+U</kbd></button><button data-action="export">Export Compiled Binary</button><button data-action="folder">Show Sketch Folder</button><hr/><button data-action="libraries">Manage Libraries… <kbd>Ctrl+Shift+I</kbd></button><button data-action="add-file">Add File…</button></div></div>
+        <div class="menu-entry"><button class="menu-trigger">Tools</button><div class="menu-popover"><button data-action="format">Auto Format <kbd>Ctrl+T</kbd></button><button data-action="serial">Serial Monitor <kbd>Ctrl+Shift+M</kbd></button><button data-action="plotter">Serial Plotter <kbd>Ctrl+Shift+L</kbd></button><hr/><button data-action="boards">Board and Port Settings</button><button data-action="libraries">Manage Libraries…</button></div></div>
+        <div class="menu-entry"><button class="menu-trigger">Help</button><div class="menu-popover"><button data-action="getting-started">Getting Started</button><button data-action="reference">Arduino Reference</button><button data-action="about">About Rustino</button></div></div>
+        <div class="mode-switcher"><span>WORKFLOW</span><select id="mode-select" title="Workflow mode"><option value="normal">Normal</option><option value="hardcore">Hardcore</option><option value="fun">Fun</option><option value="ai">AI</option></select></div>
+      </nav>
+
+      <div class="workspace">
+        <nav class="activity-bar" aria-label="Views">
+          <button class="activity active" data-view="explorer" title="Explorer">▤</button>
+          <button class="activity" data-view="boards" title="Boards and ports">◉</button>
+          <button class="activity" data-view="libraries" title="Libraries">▦</button>
+          <button class="activity" data-view="search" title="Search">⌕</button>
+          <button class="activity" data-view="git" title="Version control">⑂</button>
+          <div class="activity-spacer"></div>
+          <button class="activity" data-view="settings" title="Settings">⚙</button>
+        </nav>
+
+        <aside class="sidebar">
+          <div class="side-heading"><span id="sidebar-title">EXPLORER</span><span class="side-heading-actions"><button class="tiny-icon" id="refresh-files" title="Refresh files">⟳</button><button class="tiny-icon" id="add-file" title="New file">＋</button></span></div>
+          <div id="side-content" class="side-content"></div>
+        </aside>
+
+        <main class="editor-column">
+          <div class="tabs" id="tabs"><div class="tab active"><span class="file-dot">●</span><span id="tab-file-name">Blink.ino</span><span class="tab-dirty" id="dirty-mark"></span><button class="tab-close" id="close-file-tab" title="Close file">×</button></div><div class="tabs-spacer"></div><button class="icon-button small" id="editor-menu" title="Editor actions">···</button><div class="editor-context hidden" id="editor-context"><button data-context-action="format">Format Document</button><button data-context-action="comment">Toggle Comment</button><button data-context-action="complete">Suggestions</button><button data-context-action="find">Find / Replace</button></div></div>
+          <div class="breadcrumbs"><span id="breadcrumb-root">sketches</span><span>›</span><span id="breadcrumb-file">Blink.ino</span><span class="language-badge">C++</span></div>
+          <section id="fun-canvas" class="mode-canvas hidden">
+            <div class="mode-heading"><div><span class="eyebrow">VISUAL FIRMWARE</span><h1>Build a sketch with nodes</h1><p>Connect a simple sequence, then generate Arduino C++ in the editor.</p></div><button class="run-button upload" id="generate-flow">Generate Code</button></div>
+            <div class="flow-toolbar"><button data-node="input">＋ Digital Input</button><button data-node="output">＋ Digital Output</button><button data-node="delay">＋ Delay</button><button data-node="serial">＋ Serial Print</button><button data-node="led">＋ Built-in LED</button></div>
+            <div class="flow-canvas" id="flow-canvas"><div class="flow-empty" id="flow-empty">Add a node above to start your flow.</div></div>
+          </section>
+          <section id="ai-canvas" class="mode-canvas ai-mode hidden">
+            <div class="chat-heading"><div><span class="eyebrow">BUILT-IN ON-DEVICE AI</span><h1>Embedded AI workspace</h1><p>Qwen Coder runs from the Rustino bundle. No separate Ollama install or model download; your sketch stays local.</p></div><label class="model-picker">BUNDLED MODEL <input id="ai-model" value="qwen2.5-coder:1.5b" readonly aria-readonly="true" /></label></div>
+            <div class="ai-workspace">
+              <div class="chat-column"><div id="chat-history" class="chat-history"><div class="chat-empty">Ask about your sketch, generate code, explain build errors, or request Verify/Upload.</div></div><div class="chat-input-wrap"><textarea id="chat-input" rows="3" placeholder="Ask the local Arduino coding agent…"></textarea><div class="chat-actions"><span>Local Ollama · model runs on-device</span><button class="run-button upload" id="send-chat">Send ↗</button></div></div></div>
+              <aside class="live-code hidden" id="live-code"><div class="live-code-heading"><strong>LIVE CODE</strong><button class="tiny-icon" id="close-live-code">×</button></div><pre id="live-code-preview"></pre><div class="live-code-actions"><button class="small-button" id="apply-ai-code">Apply to Sketch</button><button class="small-button" id="verify-ai-code">Verify</button><button class="small-button" id="upload-ai-code">Flash</button></div></aside>
+            </div>
+            <button class="live-code-toggle" id="toggle-live-code">⌘ Live Code</button>
+          </section>
+          <div class="editor-wrap">
+            <div class="editor-gutter" id="line-numbers" aria-hidden="true"></div>
+            <div class="editor-input-wrap">
+              <pre id="syntax-layer" aria-hidden="true"></pre>
+              <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Arduino C++ editor"></textarea>
+              <div class="completion-menu hidden" id="completion-menu"></div>
+            </div>
+          </div>
+          <div class="editor-footer"><span id="editor-message">Arduino C++ · UTF-8</span><span><button class="text-action" id="complete-action">⌘ Space <span>Suggestions</span></button></span></div>
+        </main>
+      </div>
+
+      <section class="bottom-panel" id="bottom-panel">
+        <div class="panel-header">
+          <div class="panel-tabs"><button class="panel-tab active" data-panel="output">OUTPUT</button><button class="panel-tab" data-panel="serial">SERIAL MONITOR</button><button class="panel-tab" data-panel="plotter">SERIAL PLOTTER</button><button class="panel-tab" data-panel="problems">PROBLEMS</button></div>
+          <div class="panel-controls" id="serial-controls" hidden>
+            <select id="serial-baud" aria-label="Serial baud rate"><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option selected>115200</option><option>230400</option><option>460800</option></select>
+            <button class="small-button" id="serial-connect">Connect</button>
+            <button class="small-button" id="serial-clear">Clear</button>
+          </div>
+          <button class="tiny-icon panel-collapse" id="toggle-panel" title="Hide panel">⌄</button>
+        </div>
+        <div class="panel-body" id="panel-output" role="log" aria-live="polite"></div>
+        <div class="panel-body hidden" id="panel-serial" role="log" aria-live="polite"></div>
+        <div class="panel-body hidden plotter-panel" id="panel-plotter"><canvas id="plotter-canvas" aria-label="Serial numeric plotter"></canvas><div id="plotter-legend"></div></div>
+        <div class="panel-body hidden" id="panel-problems"><div class="empty-state">No problems reported yet. Verify your sketch to check it.</div></div>
+        <div class="serial-entry hidden" id="serial-entry"><input id="serial-input" placeholder="Send a message to the board…" /><button id="serial-send">Send</button></div>
+      </section>
+
+      <footer class="statusbar"><div class="status-left"><span class="status-logo">⌁</span><span id="status-state">Ready</span><span class="status-divider"></span><span id="status-workspace">Arduino Sketch</span></div><div class="status-right"><button id="status-mode" class="status-item">Normal Mode</button><button id="status-board" class="status-item">esp32:esp32:esp32</button><button id="status-port" class="status-item">No port</button><span class="status-item">C++</span><span class="status-item">UTF-8</span></div></footer>
+      <div class="find-widget hidden" id="find-widget"><input id="find-query" placeholder="Find"/><input id="replace-query" placeholder="Replace"/><button id="find-next">Next</button><button id="replace-one">Replace</button><button id="close-find">×</button></div>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>

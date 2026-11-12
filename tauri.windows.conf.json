@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Rustino by Sabarees",
+  "app": {
+    "windows": [
+      {
+        "title": "Rustino by Sabarees — Arduino IDE",
+        "decorations": false,
+        "width": 1460,
+        "height": 940,
+        "minWidth": 980,
+        "minHeight": 640,
+        "backgroundColor": "#111318"
+      }
+    ]
+  },
+  "bundle": {
+    "targets": ["nsis"],
+    "publisher": "Sabarees · godem.in",
+    "homepage": "https://godem.in",
+    "resources": {
+      "resources/ollama/models/": "ollama/models/",
+      "resources/ollama/licenses/": "ollama/licenses/",
+      "resources/ollama-windows/": "ollama/",
+      "resources/arduino-cli-windows/": "arduino-cli/"
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"],
+        "displayLanguageSelector": false,
+        "startMenuFolder": "Rustino by Sabarees",
+        "compression": "zlib",
+        "installerIcon": "icons/rustino.ico"
+      }
+    }
+  }
+}

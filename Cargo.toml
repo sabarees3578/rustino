@@ -1,0 +1,23 @@
+[package]
+name = "rustino"
+version = "0.3.1"
+edition = "2024"
+description = "A native Rust Arduino IDE"
+license = "MIT"
+build = "build.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.5.5", features = [] }
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.149"
+tauri = { version = "2.10.2", features = ["config-toml"] }
+
+[target.'cfg(windows)'.dependencies]
+serialport = { version = "4.10.1", default-features = false }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

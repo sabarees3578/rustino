@@ -1,0 +1,8 @@
+# Rust build and Tauri bundle output (includes the 1.2 GB Windows installer).
+/target/
+
+# Machine-local application settings.
+/.config/
+
+# Large Ollama model weights exceed GitHub's regular file size limit.
+/resources/ollama/models/
