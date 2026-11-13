@@ -1357,11 +1357,30 @@ fn prepare_cli_sketch(sketch_file: &str) -> Result<PathBuf, String> {
         .and_then(|value| value.to_str())
         .ok_or("Sketch name is invalid")?;
     let cli_stem = turbo_builder::cli_sketch_name(stem);
+    let entries = fs::read_dir(parent)
+        .map_err(|error| error.to_string())?
+        .map(|entry| entry.map_err(|error| error.to_string()))
+        .collect::<Result<Vec<_>, _>>()?;
+    let has_duplicate_sketch_tab = entries.iter().any(|entry| {
+        let path = entry.path();
+        if path == source
+            || !path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("ino"))
+        {
+            return false;
+        }
+        let Some(candidate_stem) = path.file_stem().and_then(|value| value.to_str()) else {
+            return false;
+        };
+        same_numbered_copy_group(stem, candidate_stem)
+    });
     if parent
         .file_name()
         .and_then(|value| value.to_str())
         .is_some_and(|folder| {
-            if cli_stem != stem {
+            if cli_stem != stem || has_duplicate_sketch_tab {
                 return false;
             }
             if cfg!(windows) {
@@ -1378,8 +1397,7 @@ fn prepare_cli_sketch(sketch_file: &str) -> Result<PathBuf, String> {
         fs::remove_dir_all(&staged).map_err(|error| error.to_string())?;
     }
     fs::create_dir_all(&staged).map_err(|error| error.to_string())?;
-    for entry in fs::read_dir(parent).map_err(|error| error.to_string())? {
-        let entry = entry.map_err(|error| error.to_string())?;
+    for entry in entries {
         if !entry
             .file_type()
             .map_err(|error| error.to_string())?
@@ -1397,8 +1415,21 @@ fn prepare_cli_sketch(sketch_file: &str) -> Result<PathBuf, String> {
         {
             continue;
         }
+        if extension.eq_ignore_ascii_case("ino") && path != source {
+            if let Some(candidate_stem) = path.file_stem().and_then(|value| value.to_str()) {
+                if same_numbered_copy_group(stem, candidate_stem) {
+                    continue;
+                }
+            }
+        }
         let destination = if path == source {
             staged.join(format!("{cli_stem}.ino"))
+        } else if extension.eq_ignore_ascii_case("ino") {
+            let tab_stem = path
+                .file_stem()
+                .and_then(|value| value.to_str())
+                .ok_or("Sketch tab name is invalid")?;
+            staged.join(format!("{}.ino", turbo_builder::cli_sketch_name(tab_stem)))
         } else {
             staged.join(entry.file_name())
         };
@@ -1409,6 +1440,32 @@ fn prepare_cli_sketch(sketch_file: &str) -> Result<PathBuf, String> {
         return Err(format!("Could not stage the sketch at {}", main.display()));
     }
     Ok(staged)
+}
+
+fn same_numbered_copy_group(left: &str, right: &str) -> bool {
+    fn base(stem: &str) -> &str {
+        let Some(open) = stem.rfind('(') else {
+            return stem;
+        };
+        let Some(number) = stem[open + 1..].strip_suffix(')') else {
+            return stem;
+        };
+        if number.is_empty() || !number.chars().all(|character| character.is_ascii_digit()) {
+            return stem;
+        }
+        let candidate = stem[..open].trim_end();
+        if candidate.is_empty() {
+            stem
+        } else {
+            candidate
+        }
+    }
+
+    if cfg!(windows) {
+        base(left).eq_ignore_ascii_case(base(right))
+    } else {
+        base(left) == base(right)
+    }
 }
 
 fn parse_esptool_chip_fqbn(output: &str) -> Option<String> {
