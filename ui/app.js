@@ -516,12 +516,25 @@ async function renderSidebar(view = document.querySelector(".activity.active")?.
     target.append(workspace);
     const root = document.createElement("div");
     for (const file of files) {
+      const row = document.createElement("div");
+      row.className = "side-file-row";
       const button = document.createElement("button");
       button.className = `side-file ${file === currentPath ? "active" : ""}`;
       const glyph = file.endsWith(".ino") ? "◇" : file.endsWith(".h") ? "#" : "C";
       button.innerHTML = `<span class="file-glyph">${glyph}</span><span>${escapeHtml(basename(file))}</span>`;
       button.onclick = () => openFile(file);
-      root.append(button);
+      row.append(button);
+      if (file === currentPath) {
+        const close = document.createElement("button");
+        close.className = "side-file-close";
+        close.type = "button";
+        close.title = `Close ${basename(file)}`;
+        close.setAttribute("aria-label", `Close ${basename(file)}`);
+        close.textContent = "×";
+        close.onclick = (event) => { event.stopPropagation(); closeCurrentFile(); };
+        row.append(close);
+      }
+      root.append(row);
     }
     target.append(root);
     if (!files.length) {
@@ -725,20 +738,10 @@ async function confirmDocumentSwitch() {
 
 async function closeCurrentFile() {
   if (!(await confirmDocumentSwitch())) return;
-  const previousSketchPath = prefs.sketch_path;
-  prefs.sketch_path = "";
-  try {
-    await persistPreferences();
-  } catch (error) {
-    prefs.sketch_path = previousSketchPath;
-    toast(`Could not close the active file: ${String(error)}`, "error");
-    return;
-  }
-  files = [];
   setDocument("", "");
   renderSidebar("explorer");
   editor.focus();
-  toast("File closed. The file remains on disk.");
+  toast("Editor tab closed. The file remains in the Explorer.");
 }
 
 async function saveBeforeBuild() {
