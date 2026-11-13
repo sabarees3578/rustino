@@ -124,7 +124,7 @@ function basename(path) { return path.split(/[\\/]/).filter(Boolean).at(-1) || p
 
 function setDocument(path, content) {
   currentPath = path;
-  currentName = basename(path) || "Untitled.ino";
+  currentName = path ? (basename(path) || "Untitled.ino") : "No file open";
   editor.value = content;
   dirty = false;
   renderEditor();
@@ -134,6 +134,7 @@ function setDocument(path, content) {
   $("#breadcrumb-root").textContent = basename(path.replace(/[\\/][^\\/]+$/, "")) || "sketch";
   $("#workspace-name").textContent = path ? (basename(path.replace(/[\\/][^\\/]+$/, "")) || "Sketch") : "No workspace";
   $("#status-workspace").textContent = currentName;
+  $("#close-file-tab").disabled = !path;
   updateDirty();
 }
 
@@ -409,7 +410,9 @@ function drawPlotter() {
 function updateDirty() {
   $("#dirty-mark").classList.toggle("visible", dirty);
   $("#title-dirty").classList.toggle("visible", dirty);
-  $("#editor-message").textContent = dirty ? "Unsaved changes" : "Arduino C++ · UTF-8";
+  $("#editor-message").textContent = dirty ? "Unsaved changes" : (currentPath ? "Arduino C++ · UTF-8" : "Open a sketch to begin");
+  $("#close-file-tab").disabled = !currentPath && !dirty;
+  $("#close-file-action").disabled = !currentPath && !dirty;
 }
 
 function highlight(source) {
@@ -722,7 +725,18 @@ async function confirmDocumentSwitch() {
 
 async function closeCurrentFile() {
   if (!(await confirmDocumentSwitch())) return;
+  const previousSketchPath = prefs.sketch_path;
+  prefs.sketch_path = "";
+  try {
+    await persistPreferences();
+  } catch (error) {
+    prefs.sketch_path = previousSketchPath;
+    toast(`Could not close the active file: ${String(error)}`, "error");
+    return;
+  }
+  files = [];
   setDocument("", "");
+  renderSidebar("explorer");
   editor.focus();
   toast("File closed. The file remains on disk.");
 }
@@ -902,6 +916,8 @@ editor.addEventListener("keydown", (event) => {
 
 $("#verify").onclick = () => build(false);
 $("#upload").onclick = () => build(true);
+$("#open-file-tab").onclick = openSketch;
+$("#close-file-action").onclick = closeCurrentFile;
 $("#refresh-files").onclick = refreshFiles;
 $("#add-file").onclick = async () => {
   const path = await invoke("choose_save_path");
@@ -1066,6 +1082,7 @@ $("#close-find").onclick = () => $("#find-widget").classList.add("hidden");
 document.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") { event.preventDefault(); newSketch(); }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "o") { event.preventDefault(); openSketch(); }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "w") { event.preventDefault(); closeCurrentFile(); }
   if ((event.ctrlKey || event.metaKey) && event.key === ",") { event.preventDefault(); document.querySelector('[data-view="settings"]').click(); }
   if ((event.ctrlKey || event.metaKey) && event.key === "/") { event.preventDefault(); toggleComment(); }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") { event.preventDefault(); menuAction("find"); }
@@ -1109,7 +1126,7 @@ async function boot() {
     const snapshot = await invoke("get_app_state");
     prefs = snapshot.preferences;
     files = snapshot.files;
-    setDocument(prefs.sketch_path || "", snapshot.content || STARTER);
+    setDocument(prefs.sketch_path || "", snapshot.content ?? "");
     updateBoardStatus();
     setMode(mode);
     renderSidebar("explorer");
@@ -1118,7 +1135,7 @@ async function boot() {
     await fillPorts();
     if (mode === "normal") await scanBoards();
   } catch (error) {
-    setDocument("", STARTER);
+    setDocument("", "");
     renderSidebar("explorer");
     logLine(`Startup failed: ${String(error)}`, "error");
   }

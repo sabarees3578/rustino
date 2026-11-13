@@ -126,7 +126,7 @@ fn get_app_state(app: AppHandle) -> AppSnapshot {
     let content = if preferences.sketch_path.is_empty() {
         startup_message
             .get_or_insert_with(|| "Open an Arduino sketch to begin editing.".to_owned());
-        STARTER.to_owned()
+        String::new()
     } else {
         match fs::read_to_string(&preferences.sketch_path) {
             Ok(content) => content,
