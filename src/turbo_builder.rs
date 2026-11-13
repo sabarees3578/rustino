@@ -6,6 +6,32 @@ pub struct BuildPlan {
     pub jobs: usize,
 }
 
+/// Arduino platform recipes sometimes interpolate the sketch name into a
+/// `bash -c` command without shell quoting. Keep staged names shell-safe even
+/// when the user's real sketch has spaces, parentheses, or other punctuation.
+pub fn cli_sketch_name(stem: &str) -> String {
+    let mut safe = stem
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || character == '_' {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>();
+    if safe.is_empty() {
+        safe.push_str("Sketch");
+    } else if !safe
+        .chars()
+        .next()
+        .is_some_and(|character| character.is_ascii_alphabetic())
+    {
+        safe.insert_str(0, "Sketch_");
+    }
+    safe
+}
+
 fn cache_root() -> PathBuf {
     #[cfg(windows)]
     {
@@ -52,7 +78,7 @@ pub fn staged_sketch_path(sketch: &Path) -> PathBuf {
     cache_root()
         .join("staging")
         .join(format!("{key:016x}"))
-        .join(stem)
+        .join(cli_sketch_name(stem))
 }
 fn stable_key<T: Hash>(value: &T) -> u64 {
     struct Fnv(u64);

@@ -1356,10 +1356,14 @@ fn prepare_cli_sketch(sketch_file: &str) -> Result<PathBuf, String> {
         .file_stem()
         .and_then(|value| value.to_str())
         .ok_or("Sketch name is invalid")?;
+    let cli_stem = turbo_builder::cli_sketch_name(stem);
     if parent
         .file_name()
         .and_then(|value| value.to_str())
         .is_some_and(|folder| {
+            if cli_stem != stem {
+                return false;
+            }
             if cfg!(windows) {
                 folder.eq_ignore_ascii_case(stem)
             } else {
@@ -1394,13 +1398,13 @@ fn prepare_cli_sketch(sketch_file: &str) -> Result<PathBuf, String> {
             continue;
         }
         let destination = if path == source {
-            staged.join(format!("{stem}.ino"))
+            staged.join(format!("{cli_stem}.ino"))
         } else {
             staged.join(entry.file_name())
         };
         fs::copy(path, destination).map_err(|error| error.to_string())?;
     }
-    let main = staged.join(format!("{stem}.ino"));
+    let main = staged.join(format!("{cli_stem}.ino"));
     if !main.is_file() {
         return Err(format!("Could not stage the sketch at {}", main.display()));
     }
@@ -1916,16 +1920,16 @@ mod tests {
             std::env::temp_dir().join(format!("rustino-loose-sketch-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
-        let source = root.join("Board Demo.ino");
+        let source = root.join("Board Demo (1).ino");
         fs::write(&source, "void setup() {}\nvoid loop() {}\n").unwrap();
         fs::write(root.join("pins.h"), "#pragma once\n").unwrap();
 
         let staged = prepare_cli_sketch(source.to_str().unwrap()).unwrap();
         assert_eq!(
             staged.file_name().and_then(|name| name.to_str()),
-            Some("Board Demo")
+            Some("Board_Demo__1_")
         );
-        assert!(staged.join("Board Demo.ino").is_file());
+        assert!(staged.join("Board_Demo__1_.ino").is_file());
         assert!(staged.join("pins.h").is_file());
 
         let stage_root = staged.parent().unwrap().to_path_buf();
