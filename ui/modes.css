@@ -5,6 +5,7 @@
 .editor-context button:hover{background:#293341}
 .detected-port{display:grid;gap:6px;margin:8px 0}
 .titlebar{gap:10px;padding:0 9px}
+.hardware-actions,.window-controls,.menubar,.workspace,.bottom-panel,.statusbar{-webkit-app-region:no-drag}
 .brand{min-width:190px}
 .titlebar-center{justify-content:flex-start}
 .unsaved-dot{opacity:0;color:#e0b15c;font-size:9px}.unsaved-dot.visible{opacity:1}
