@@ -160,6 +160,40 @@ fn list_project_files(sketch_path: String) -> Vec<String> {
 }
 
 #[tauri::command]
+fn delete_project_file(sketch_path: String, file_path: String) -> Result<(), String> {
+    let sketch = Path::new(&sketch_path);
+    let project_dir = sketch
+        .parent()
+        .ok_or("Sketch has no parent folder")?
+        .canonicalize()
+        .map_err(|error| format!("Could not access project folder: {error}"))?;
+    let candidate = Path::new(&file_path);
+    if !candidate
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            ["ino", "h", "hpp", "cpp", "c"]
+                .iter()
+                .any(|allowed| extension.eq_ignore_ascii_case(allowed))
+        })
+    {
+        return Err("Only sketch source files can be removed from the Explorer".to_owned());
+    }
+    let metadata = fs::symlink_metadata(candidate)
+        .map_err(|error| format!("Could not inspect {file_path}: {error}"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("Only regular project source files can be removed".to_owned());
+    }
+    let canonical_file = candidate
+        .canonicalize()
+        .map_err(|error| format!("Could not access {file_path}: {error}"))?;
+    if canonical_file.parent() != Some(project_dir.as_path()) {
+        return Err("The selected file is outside this sketch folder".to_owned());
+    }
+    fs::remove_file(candidate).map_err(|error| format!("Could not remove {file_path}: {error}"))
+}
+
+#[tauri::command]
 async fn git_status(sketch_path: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let directory = Path::new(&sketch_path)
@@ -1852,6 +1886,7 @@ fn main() {
             get_app_state,
             save_preferences,
             list_project_files,
+            delete_project_file,
             git_status,
             open_file,
             choose_sketch,

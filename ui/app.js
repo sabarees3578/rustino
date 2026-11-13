@@ -534,6 +534,14 @@ async function renderSidebar(view = document.querySelector(".activity.active")?.
         close.onclick = (event) => { event.stopPropagation(); closeCurrentFile(); };
         row.append(close);
       }
+      const remove = document.createElement("button");
+      remove.className = "side-file-delete";
+      remove.type = "button";
+      remove.title = `Delete ${basename(file)} from disk`;
+      remove.setAttribute("aria-label", `Delete ${basename(file)} from disk`);
+      remove.textContent = "🗑";
+      remove.onclick = (event) => { event.stopPropagation(); removeProjectFile(file); };
+      row.append(remove);
       root.append(row);
     }
     target.append(root);
@@ -742,6 +750,39 @@ async function closeCurrentFile() {
   renderSidebar("explorer");
   editor.focus();
   toast("Editor tab closed. The file remains in the Explorer.");
+}
+
+function confirmDeleteFile(path) {
+  const dialog = $("#delete-file-dialog");
+  if (!dialog?.showModal) return Promise.resolve(confirm(`Permanently delete ${basename(path)} from disk?`));
+  $("#delete-file-name").textContent = basename(path);
+  return new Promise((resolve) => {
+    const finish = (confirmed) => { dialog.close(); resolve(confirmed); };
+    $("#delete-file-cancel").onclick = () => finish(false);
+    $("#delete-file-confirm").onclick = () => finish(true);
+    dialog.oncancel = (event) => { event.preventDefault(); finish(false); };
+    dialog.showModal();
+  });
+}
+
+async function removeProjectFile(path) {
+  if (path === currentPath && !(await confirmDocumentSwitch())) return;
+  if (!(await confirmDeleteFile(path))) return;
+  const projectSketch = prefs.sketch_path || path;
+  try {
+    await invoke("delete_project_file", { sketchPath: projectSketch, filePath: path });
+    files = await invoke("list_project_files", { sketchPath: projectSketch });
+    if (path === currentPath) setDocument("", "");
+    if (path === prefs.sketch_path) {
+      prefs.sketch_path = files.find((file) => file.toLowerCase().endsWith(".ino")) || "";
+      try { await persistPreferences(); }
+      catch (error) { logLine(`File deleted, but the active sketch setting could not be updated: ${String(error)}`, "warn"); }
+    }
+    renderSidebar("explorer");
+    toast(`${basename(path)} deleted from disk.`);
+  } catch (error) {
+    toast(String(error), "error");
+  }
 }
 
 async function saveBeforeBuild() {

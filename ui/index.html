@@ -18,6 +18,14 @@
         <button id="unsaved-save" class="run-button upload">Save</button>
       </div>
     </dialog>
+    <dialog id="delete-file-dialog" class="unsaved-dialog delete-file-dialog">
+      <h2>Delete this file?</h2>
+      <p><strong id="delete-file-name"></strong> will be permanently removed from disk.</p>
+      <div class="unsaved-actions">
+        <button id="delete-file-cancel" class="small-button">Cancel</button>
+        <button id="delete-file-confirm" class="small-button delete-confirm">Delete File</button>
+      </div>
+    </dialog>
     <div class="app-frame">
       <header class="titlebar">
         <div class="brand" data-tauri-drag-region><span class="brand-mark">R</span><span>rustino</span><span class="brand-context">Arduino Workbench</span></div>
